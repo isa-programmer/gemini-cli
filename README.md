@@ -20,12 +20,12 @@ echo GEMINI_API_KEY=XXXXXXXXXXX >> ~/.gemini.env # XXX yazan yere kendi API anah
 
 ### Kod Oluşturma
 ```bash
-gemini-cli :code example.py "Kullanıcıya IP adresini yazdırtan bir python kodu yaz"
+gemini-cli :kod example.py "Kullanıcıya IP adresini yazdırtan bir python kodu yaz"
 ```
 
 ### Görsel Oluşturma
 ```bash
-gemini-cli :img eyfel_kulesi.png "Bana eyfel kulesini gerçekçi şekilde çiz"
+gemini-cli :resim eyfel_kulesi.png "Bana eyfel kulesini gerçekçi şekilde çiz"
 ```
 
 ### Görsel Analizi
