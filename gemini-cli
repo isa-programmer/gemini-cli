@@ -15,6 +15,9 @@ load_dotenv(f'/home/{os.environ["USER"]}/.gemini.env') # API ANAHTARI
 GEMINI_API = os.getenv('GEMINI_API_KEY')
 ###										###
 
+# Kullanıcı adını al
+USERNAME = os.environ["USER"]
+
 # Renkli çıktı için ANSI renk kodları
 GREEN = "\033[92m"
 BLUE = "\033[94m"
@@ -133,7 +136,7 @@ def startChat(client):
     chat_history = []
     
     while True:
-        user_input = input(f"{YELLOW}{BOLD}Siz: {RESET}").strip()
+        user_input = input(f"{YELLOW}{BOLD}{USERNAME}: {RESET}").strip()
         if user_input.lower() in ['exit', 'quit', 'çıkış', 'q', 'x', 'kapat', 'çık', 'son']:
             print(f"{BLUE}{BOLD}Sohbet sonlandırıldı.{RESET}")
             break
@@ -198,7 +201,7 @@ def saveConversation(chat_history, filename):
             f.write(f"# Gemini Sohbet - {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
             for msg in chat_history:
                 if msg["role"] == "user":
-                    f.write(f"**Siz:** {msg['content']}\n\n")
+                    f.write(f"**{USERNAME}:** {msg['content']}\n\n")
                 else:
                     f.write(f"**Gemini:** {msg['content']}\n\n")
         print(f"{GREEN}{BOLD}Sohbet {filename} dosyasına başarıyla kaydedildi!{RESET}")
