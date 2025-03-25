@@ -88,8 +88,8 @@ gemini-cli :çevir "Hello, how are you?" Türkçe İngilizce
 
 ## Özellikler
 
-- [x] Kod oluşturma - `:code` komutu ile kod oluşturabilirsiniz
-- [x] Görsel oluşturma - `:img` komutu ile görsel oluşturabilirsiniz
+- [x] Kod oluşturma - `:kod` komutu ile kod oluşturabilirsiniz
+- [x] Görsel oluşturma - `:resim` komutu ile görsel oluşturabilirsiniz
 - [x] Görsel analizi - `:analiz` komutu ile görselleri analiz edebilirsiniz
 - [x] Dosya hakkında soru - `:soru` komutu ile dosya hakkında sorular sorabilirsiniz
 - [x] Hava durumu - `:hava` komutu ile hava durumu bilgisi alabilirsiniz
