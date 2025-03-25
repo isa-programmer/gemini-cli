@@ -1,5 +1,9 @@
 #!/usr/bin/python3
-import sys,os,base64
+import sys
+import os
+import base64
+import json
+import datetime
 from google import genai
 from google.genai import types
 from PIL import Image
@@ -11,87 +15,518 @@ load_dotenv(f'/home/{os.environ["USER"]}/.gemini.env') # API ANAHTARI
 GEMINI_API = os.getenv('GEMINI_API_KEY')
 ###										###
 
+# Renkli çıktı için ANSI renk kodları
+GREEN = "\033[92m"
+BLUE = "\033[94m"
+YELLOW = "\033[93m"
+RESET = "\033[0m"
+BOLD = "\033[1m"
 
-def generateImage(client,prompt=None,filename="Example.png"):
-	print('Oluşturuluyor....')
-	response = client.models.generate_content(
-	    model="gemini-2.0-flash-exp-image-generation",
-	    contents=prompt,
-	    config=types.GenerateContentConfig(
-	      response_modalities=['Text', 'Image']
-	    )
-	)
-	for part in response.candidates[0].content.parts:
-	  if part.text is not None:
-	    print(part.text)
-	  elif part.inline_data is not None:
-	    image = Image.open(BytesIO((part.inline_data.data)))
-	    image.save(f'{filename}')
+def generateImage(client, prompt=None, filename="Example.png"):
+    """
+    Gemini API'yi kullanarak metinden görsel oluşturur.
+    
+    Args:
+        client: Google Genai API istemcisi
+        prompt: Görsel oluşturmak için metin talimatı
+        filename: Oluşturulan görselin kaydedileceği dosya adı
+    """
+    try:
+        print(f'{YELLOW}Görsel oluşturuluyor....{RESET}')
+        response = client.models.generate_content(
+            model="gemini-2.0-flash-exp-image-generation",
+            contents=prompt,
+            config=types.GenerateContentConfig(
+              response_modalities=['Text', 'Image']
+            )
+        )
+        
+        for part in response.candidates[0].content.parts:
+            if part.text is not None:
+                print(part.text)
+            elif part.inline_data is not None:
+                image = Image.open(BytesIO((part.inline_data.data)))
+                image.save(f'{filename}')
+                print(f"{GREEN}{BOLD}{filename} adında resim başarıyla oluşturuldu!{RESET}")
+    except Exception as e:
+        print(f"Görsel oluşturulurken bir hata oluştu: {e}")
 
 
-def helpBash(client,command='sudo apt install'):
-	prompt = f"""Merhaba, benim için bir Bash komutunu açıklayabilir misin? {command} tam olarak ne yapıyor?
-    Lütfen maksimum 4 satırla açıklayın"""
-	response = client.models.generate_content(
-    model="gemini-2.0-flash", contents=prompt)
-	return response.text
+def helpBash(client, command='sudo apt install'):
+    """
+    Bash komutları hakkında yardım ve açıklama sağlar.
+    
+    Args:
+        client: Google Genai API istemcisi
+        command: Açıklanması istenen bash komutu
+    
+    Returns:
+        Bash komutu hakkında açıklama
+    """
+    try:
+        prompt = f"""Merhaba, benim için bir Bash komutunu açıklayabilir misin? {command} tam olarak ne yapıyor?
+        Lütfen maksimum 4 satırla açıklayın"""
+        response = client.models.generate_content(
+            model="gemini-2.0-flash", contents=prompt)
+        return response.text
+    except Exception as e:
+        return f"Komut açıklanırken bir hata oluştu: {e}"
 
 
+def runBash(client, command='BASH ile nasıl tüm JPEG dosyalarını bulurum?'):
+    """
+    Belirtilen görevi yerine getiren bash komutunu üretir.
+    
+    Args:
+        client: Google Genai API istemcisi
+        command: Gerçekleştirilmek istenen görev açıklaması
+    
+    Returns:
+        Görevi yerine getiren bash komutu
+    """
+    try:
+        prompt = f"""Merhaba! bana bash konusunda yardım et. {command} (Lütfen sadece komutu ver ve hiç açıklama yapma çünkü direk komutu çalıştırmam gerek sadece komutu ver!)"""
+        response = client.models.generate_content(
+            model="gemini-2.0-flash", contents=prompt)
+        ai_command = response.text.replace('```bash\n','').replace('\n```','')
+        return ai_command
+    except Exception as e:
+        return f"Bash komutu üretilirken bir hata oluştu: {e}"
 
-def runBash(client,command='BASH ile nasıl tüm JPEG dosyalarını bulurum?'):
-	prompt = f"""Merhaba! bana bash konusunda yardım et. {command} (Lütfen sadece komutu ver ve hiç açıklama yapma çünkü direk komutu çalıştırmam gerek sadece komutu ver!)"""
-	response = client.models.generate_content(
-    model="gemini-2.0-flash", contents=prompt)
-	ai_command = response.text.replace('```bash\n','').replace('\n```','')
-	return ai_command
-	
+
+def writeCode(client, prompt="Nasıl python ile 1-10 arası tüm sayıları yazarım?", filename="yeni_python_kodu.py"):
+    """
+    Verilen talimata göre kod oluşturur ve dosyaya kaydeder.
+    
+    Args:
+        client: Google Genai API istemcisi
+        prompt: Kod oluşturmak için metin talimatı
+        filename: Oluşturulan kodun kaydedileceği dosya adı
+    """
+    try:
+        prompt = f"""Merhaba! {prompt} (Lütfen sadece kodu ver ve hiç açıklama yapma çünkü direk kodu çalıştırmam gerek sadece kodu ver!)"""
+        response = client.models.generate_content(
+            model="gemini-2.0-flash", contents=prompt)
+        with open(filename, "w") as f:
+            lines = response.text.splitlines()
+            # Markdown kod bloğu varsa kaldır, yoksa tüm metni yaz
+            if "```" in response.text:
+                code = "\n".join(lines[1:-1]) if len(lines) > 2 else response.text
+            else:
+                code = response.text
+            f.write(code)
+        print(f"{GREEN}{BOLD}{filename} adında kod dosyası başarıyla oluşturuldu!{RESET}")
+    except Exception as e:
+        print(f"Kod oluşturulurken bir hata oluştu: {e}")
 
 
+def startChat(client):
+    """
+    Gemini ile interaktif sohbet başlatır. Kullanıcı 'exit' veya 'quit' yazana kadar devam eder.
+    
+    Args:
+        client: Google Genai API istemcisi
+    """
+    print(f"{BLUE}{BOLD}Gemini ile sohbet başlatıldı. Çıkmak için 'exit' veya 'quit' yazın.{RESET}")
+    print(f"{BLUE}Özel komutlar: :kaydet dosya.txt (konuşmayı dosyaya kaydeder){RESET}")
+    # Güncel API için sohbet geçmişini manuel olarak tutuyoruz
+    chat_history = []
+    
+    while True:
+        user_input = input(f"{YELLOW}{BOLD}Siz: {RESET}").strip()
+        if user_input.lower() in ['exit', 'quit', 'çıkış', 'q', 'x', 'kapat', 'çık', 'son']:
+            print(f"{BLUE}{BOLD}Sohbet sonlandırıldı.{RESET}")
+            break
+        
+        # Sohbeti kaydetme fonksiyonu
+        if user_input.startswith(":kaydet"):
+            parts = user_input.split(" ", 1)
+            if len(parts) > 1:
+                filename = parts[1]
+                saveConversation(chat_history, filename)
+                continue
+        
+        if not user_input:  # Boş girişleri atla
+            continue
+        
+        try:
+            # Sohbet geçmişini ve yeni soruyu birleştir
+            full_prompt = ""
+            
+            # Önceki konuşma geçmişini ekle
+            for msg in chat_history:
+                if msg["role"] == "user":
+                    full_prompt += f"Kullanıcı: {msg['content']}\n"
+                else:
+                    full_prompt += f"Asistan: {msg['content']}\n"
+            
+            # Yeni mesajı ekle
+            full_prompt += f"Kullanıcı: {user_input}\nAsistan:"
+            
+            # API isteği gönder
+            response = client.models.generate_content(
+                model="gemini-2.0-flash",
+                contents=full_prompt
+            )
+            
+            # Yanıtı göster
+            print(f"{GREEN}{BOLD}Gemini: {RESET}{response.text}")
+            
+            # Sohbet geçmişine ekle
+            chat_history.append({"role": "user", "content": user_input})
+            chat_history.append({"role": "assistant", "content": response.text})
+            
+            # Geçmişi belirli bir uzunlukta tut (istemci belleği için)
+            if len(chat_history) > 8:  # Son 4 konuşmayı tut
+                chat_history = chat_history[-8:]
+                
+        except Exception as e:
+            print(f"{YELLOW}Sohbet sırasında bir hata oluştu: {e}{RESET}")
+            print(f"{YELLOW}Lütfen tekrar deneyin veya farklı bir soru sorun.{RESET}")
 
-def writeCode(client,prompt="Nasl python ile 1-10 arası tüm sayıları yazarım?",filename="yeni_python_kodu.py"):
-	prompt = f"""Merhaba! {prompt} (Lütfen sadece kodu ver ve hiç açıklama yapma çünkü direk kodu çalıştırmam gerek sadece kodu ver!)"""
-	response = client.models.generate_content(
-    model="gemini-2.0-flash", contents=prompt)
-	with open(filename,"w") as f:
-		lines = response.text.splitlines()
-		code = "\n".join(lines[1:-1])
-		f.write(code)
+
+def saveConversation(chat_history, filename):
+    """
+    Sohbet geçmişini bir dosyaya kaydeder.
+    
+    Args:
+        chat_history: Kaydedilecek sohbet geçmişi
+        filename: Kaydedilecek dosya adı
+    """
+    try:
+        with open(filename, "w", encoding="utf-8") as f:
+            f.write(f"# Gemini Sohbet - {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n")
+            for msg in chat_history:
+                if msg["role"] == "user":
+                    f.write(f"**Siz:** {msg['content']}\n\n")
+                else:
+                    f.write(f"**Gemini:** {msg['content']}\n\n")
+        print(f"{GREEN}{BOLD}Sohbet {filename} dosyasına başarıyla kaydedildi!{RESET}")
+    except Exception as e:
+        print(f"{YELLOW}Sohbet kaydedilirken bir hata oluştu: {e}{RESET}")
+
+
+def summarizeText(client, prompt):
+    """
+    Verilen metni özetler.
+    
+    Args:
+        client: Google Genai API istemcisi
+        prompt: Özetlenmesi istenen metin
+        
+    Returns:
+        Özetlenmiş metin
+    """
+    try:
+        prompt = f"""Lütfen aşağıdaki metni kısa ve öz bir şekilde özetle:
+        
+        {prompt}
+        
+        Özet:"""
+        
+        response = client.models.generate_content(
+            model="gemini-2.0-flash", contents=prompt)
+        return response.text
+    except Exception as e:
+        return f"Metin özetlenirken bir hata oluştu: {e}"
+
+
+def translateText(client, text, target_lang="İngilizce", source_lang=None):
+    """
+    Verilen metni hedef dile çevirir.
+    
+    Args:
+        client: Google Genai API istemcisi
+        text: Çevrilecek metin
+        target_lang: Hedef dil (varsayılan: İngilizce)
+        source_lang: Kaynak dil (varsayılan: None, otomatik tespit)
+        
+    Returns:
+        Çevrilmiş metin
+    """
+    try:
+        source_lang_text = f"kaynak dil: {source_lang}" if source_lang else "kaynak dili otomatik tespit et"
+        prompt = f"""Aşağıdaki metni {target_lang} diline çevir. {source_lang_text}. 
+        Sadece çeviriyi ver, açıklama ekleme.
+        
+        Metin: {text}
+        
+        Çeviri:"""
+        
+        response = client.models.generate_content(
+            model="gemini-2.0-flash", contents=prompt)
+        return response.text
+    except Exception as e:
+        return f"Metin çevirilirken bir hata oluştu: {e}"
+
+
+def analyzeImage(client, image_path):
+    """
+    Bir resmi analiz eder ve içeriği hakkında açıklama yapar.
+    
+    Args:
+        client: Google Genai API istemcisi
+        image_path: Analiz edilecek resmin dosya yolu
+        
+    Returns:
+        Resim analizi
+    """
+    try:
+        # Resmi kontrol et ve yükle
+        if not os.path.exists(image_path):
+            return f"Hata: {image_path} dosyası bulunamadı."
+        
+        with open(image_path, "rb") as f:
+            image_data = f.read()
+            
+        image_parts = [
+            {
+                "inline_data": {
+                    "mime_type": "image/jpeg" if image_path.lower().endswith("jpg") or image_path.lower().endswith("jpeg") 
+                                 else "image/png" if image_path.lower().endswith("png") 
+                                 else "image/gif" if image_path.lower().endswith("gif") 
+                                 else "application/octet-stream",
+                    "data": base64.b64encode(image_data).decode("utf-8")
+                }
+            }
+        ]
+        
+        prompt = "Bu görseli detaylı bir şekilde analiz et ve ne gördüğünü açıkla."
+        
+        response = client.models.generate_content(
+            model="gemini-2.0-flash-vision",
+            contents=[{"parts": [{"text": prompt}] + image_parts}]
+        )
+        
+        return response.text
+    except Exception as e:
+        return f"Resim analiz edilirken bir hata oluştu: {e}"
+
+
+def answerQuestionAboutFile(client, file_path, question):
+    """
+    Bir dosya hakkında sorulan soruyu cevaplar.
+    
+    Args:
+        client: Google Genai API istemcisi
+        file_path: Soru sorulan dosyanın yolu
+        question: Dosya hakkında sorulan soru
+        
+    Returns:
+        Dosya hakkında yanıt
+    """
+    try:
+        # Dosyayı kontrol et ve oku
+        if not os.path.exists(file_path):
+            return f"Hata: {file_path} dosyası bulunamadı."
+        
+        with open(file_path, "r") as f:
+            file_content = f.read()
+        
+        prompt = f"""Aşağıdaki dosya içeriğine göre soruyu cevapla:
+        
+        Dosya: {file_path}
+        İçerik:
+        ```
+        {file_content}
+        ```
+        
+        Soru: {question}
+        """
+        
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt
+        )
+        
+        return response.text
+    except Exception as e:
+        return f"Dosya hakkında soru cevaplanırken bir hata oluştu: {e}"
+
+
+def getWeather(client, location):
+    """
+    Belirtilen konumun güncel hava durumunu sorgular.
+    
+    Args:
+        client: Google Genai API istemcisi
+        location: Hava durumu sorgulanacak yer (şehir, ülke vs.)
+        
+    Returns:
+        Hava durumu bilgisi
+    """
+    try:
+        prompt = f"""Lütfen "{location}" konumunun güncel hava durumunu araştır ve aşağıdaki formatta bilgi ver:
+        - Konum
+        - Sıcaklık (santigrat)
+        - Hava Koşulları (yağmurlu, güneşli vs.)
+        - Nem Oranı
+        - Rüzgar Hızı
+        
+        Eğer güncel veri bulamazsan veya bazı bilgiler eksikse, mevcut en güncel bilgiyi ver.
+        
+        ÖNEMLİ: Sadece bu listeyi doldur, başka açıklama yapma.
+        """
+        
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt
+        )
+        
+        return response.text
+    except Exception as e:
+        return f"Hava durumu sorgulanırken bir hata oluştu: {e}"
+
+
+def getExchangeRates(client, base_currency="TRY"):
+    """
+    Güncel döviz kurlarını gösterir.
+    
+    Args:
+        client: Google Genai API istemcisi
+        base_currency: Temel alınacak para birimi (varsayılan: TRY)
+        
+    Returns:
+        Güncel döviz kuru bilgisi
+    """
+    try:
+        prompt = f"""Lütfen güncel döviz kurlarını {base_currency} bazında araştır ve aşağıdaki döviz kurlarını ver:
+        - USD/{base_currency}
+        - EUR/{base_currency}
+        - GBP/{base_currency}
+        - JPY/{base_currency}
+        - CHF/{base_currency}
+        
+        Lütfen sadece güncel tarihi ve kurları liste halinde ver, başka açıklama yapma.
+        """
+        
+        response = client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=prompt
+        )
+        
+        return response.text
+    except Exception as e:
+        return f"Döviz kurları sorgulanırken bir hata oluştu: {e}"
+
+
+def displayHelp():
+    """Kullanım bilgilerini gösterir."""
+    print(f"""
+{BLUE}{BOLD}gemini-cli Kullanım:{RESET}
+
+{YELLOW}Kod Oluşturma:{RESET}
+gemini-cli :code example.py "Kullanıcıya IP adresini yazdırtan bir python kodu yaz"
+
+{YELLOW}Görsel Oluşturma:{RESET}
+gemini-cli :img eyfel_kulesi.png "Bana eyfel kulesini gerçekçi bir şekilde çiz"
+
+{YELLOW}Görsel Analizi:{RESET}
+gemini-cli :analiz resim.jpg
+
+{YELLOW}Dosya Hakkında Soru:{RESET}
+gemini-cli :soru dosya.txt "Bu dosya hakkında sorum..."
+
+{YELLOW}Hava Durumu:{RESET}
+gemini-cli :hava "İstanbul"
+
+{YELLOW}Döviz Kurları:{RESET}
+gemini-cli :kur [para birimi]
+Örnek: gemini-cli :kur USD
+
+{YELLOW}Bash Komutu Yardımı:{RESET}
+gemini-cli :help "sudo dpkg -i package.deb"
+
+{YELLOW}Bash Komutu Oluşturma:{RESET}
+gemini-cli :sh "Nasıl Masaüstü dizinindeki tüm txt dosyalarını bulurum?"
+
+{YELLOW}Metin Özetleme:{RESET}
+gemini-cli :özet "Özetlenmesini istediğiniz metin buraya yazılır..."
+
+{YELLOW}Metin Çevirme:{RESET}
+gemini-cli :çevir "Çevrilecek metin" hedef_dil [kaynak_dil]
+Örnek: gemini-cli :çevir "Hello, how are you?" Türkçe İngilizce
+
+{YELLOW}Sohbet Modu:{RESET}
+gemini-cli :sohbet
+    """)
 
 
 if __name__ == "__main__":
-    client = genai.Client(api_key=GEMINI_API)
+    # API anahtarı kontrol ediliyor
+    if not GEMINI_API:
+        print(f"{YELLOW}{BOLD}API anahtarı bulunamadı! Lütfen ~/.gemini.env dosyasına GEMINI_API_KEY=XXX şeklinde anahtarınızı ekleyin.{RESET}")
+        sys.exit(1)
 
-    if len(sys.argv) < 3:
-        print("""
-gemini-cli :code example.py "Kullanıcıya IP adresini yazdırtan bir python kodu yaz"
-gemini-cli :img eyfel_kulesi.png "Bana eyfel kulesini gerçekçi bir şekilde çiz"
-gemini-cli :help "sudo dpkg -i package.deb"
-gemini-cli :sh "Nasıl Masaüstü dizinindeki tüm txt dosyalarını bulurum?"
-            """)
-        sys.exit()
+    try:
+        client = genai.Client(api_key=GEMINI_API)
+    except Exception as e:
+        print(f"API bağlantısı sırasında bir hata oluştu: {e}")
+        sys.exit(1)
 
+    if len(sys.argv) < 2:
+        displayHelp()
+        sys.exit(0)
 
-    if sys.argv[1] == ":code":
+    # Komut işleme
+    command = sys.argv[1].lower()
+    
+    if command == ":code" and len(sys.argv) >= 4:
         filename = sys.argv[2]
         prompt = ' '.join(sys.argv[3:])
-        writeCode(client,prompt=prompt,filename=filename)
-        print(f"\x1b[1m{filename} adında kod dosyası oluşturuldu!")
-        sys.exit()
-
-    elif sys.argv[1] == ":sh":
-        command = ' '.join(sys.argv[3:])
-        response = runBash(client,command=command)
-        print(f"\x1b[1m{response}")
-        sys.exit()
-
-    elif sys.argv[1] == ":img":
+        writeCode(client, prompt=prompt, filename=filename)
+        
+    elif command == ":sh" and len(sys.argv) >= 3:
+        command = ' '.join(sys.argv[2:])
+        response = runBash(client, command=command)
+        print(f"{BOLD}{response}{RESET}")
+        
+    elif command == ":img" and len(sys.argv) >= 4:
         filename = sys.argv[2]
         prompt = ' '.join(sys.argv[3:])
-        generateImage(client,prompt=prompt,filename=filename)
-        print(f"\x1b[1m{filename} adında resim oluşturuldu!")
-        sys.exit()
-    elif sys.argv[1] == ":help":
-        command = ' '.join(sys.argv[3:])
-        response = helpBash(client,command=command)
-        print(f"\x1b[1m{response}")
-        sys.exit()
+        generateImage(client, prompt=prompt, filename=filename)
+        
+    elif command == ":help" and len(sys.argv) >= 3:
+        command = ' '.join(sys.argv[2:])
+        response = helpBash(client, command=command)
+        print(f"{BOLD}{response}{RESET}")
+        
+    elif command == ":sohbet":
+        startChat(client)
+        
+    elif command == ":özet" and len(sys.argv) >= 3:
+        text = ' '.join(sys.argv[2:])
+        summary = summarizeText(client, text)
+        print(f"{BOLD}{summary}{RESET}")
+        
+    elif command in [":çevir", ":cevir", ":translate"] and len(sys.argv) >= 3:
+        text = sys.argv[2]
+        target_lang = sys.argv[3] if len(sys.argv) >= 4 else "İngilizce"
+        source_lang = sys.argv[4] if len(sys.argv) >= 5 else None
+        
+        translation = translateText(client, text, target_lang, source_lang)
+        print(f"{BOLD}{translation}{RESET}")
+        
+    elif command == ":analiz" and len(sys.argv) >= 3:
+        image_path = sys.argv[2]
+        analysis = analyzeImage(client, image_path)
+        print(f"{BOLD}{analysis}{RESET}")
+        
+    elif command == ":soru" and len(sys.argv) >= 4:
+        file_path = sys.argv[2]
+        question = ' '.join(sys.argv[3:])
+        answer = answerQuestionAboutFile(client, file_path, question)
+        print(f"{BOLD}{answer}{RESET}")
+        
+    elif command == ":hava" and len(sys.argv) >= 3:
+        location = ' '.join(sys.argv[2:])
+        weather = getWeather(client, location)
+        print(f"{BOLD}{weather}{RESET}")
+        
+    elif command in [":kur", ":doviz", ":currency"] and len(sys.argv) >= 2:
+        base_currency = sys.argv[2] if len(sys.argv) >= 3 else "TRY"
+        rates = getExchangeRates(client, base_currency)
+        print(f"{BOLD}{rates}{RESET}")
+        
+    else:
+        displayHelp()
