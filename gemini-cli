@@ -73,25 +73,25 @@ gemini-cli :sh "Nasıl Masaüstü dizinindeki tüm txt dosyalarını bulurum?"
 
     if sys.argv[1] == ":code":
         filename = sys.argv[2]
-        prompt = ' '.join(sys.argv[2:])
+        prompt = ' '.join(sys.argv[3:])
         writeCode(client,prompt=prompt,filename=filename)
         print(f"\x1b[1m{filename} adında kod dosyası oluşturuldu!")
         sys.exit()
 
     elif sys.argv[1] == ":sh":
-        command = ' '.join(sys.argv[2:])
+        command = ' '.join(sys.argv[3:])
         response = runBash(client,command=command)
         print(f"\x1b[1m{response}")
         sys.exit()
 
     elif sys.argv[1] == ":img":
         filename = sys.argv[2]
-        prompt = ' '.join(sys.argv[2:])
+        prompt = ' '.join(sys.argv[3:])
         generateImage(client,prompt=prompt,filename=filename)
         print(f"\x1b[1m{filename} adında resim oluşturuldu!")
         sys.exit()
     elif sys.argv[1] == ":help":
-        command = ' '.join(sys.argv[2:])
+        command = ' '.join(sys.argv[3:])
         response = helpBash(client,command=command)
         print(f"\x1b[1m{response}")
         sys.exit()
