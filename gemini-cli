@@ -1,0 +1,97 @@
+#!/usr/bin/python3
+import sys,os,base64
+from google import genai
+from google.genai import types
+from PIL import Image
+from io import BytesIO
+
+###										###
+from dotenv import load_dotenv
+load_dotenv(f'/home/{os.environ["USER"]}/.gemini.env') # API ANAHTARI
+GEMINI_API = os.getenv('GEMINI_API_KEY')
+###										###
+
+
+def generateImage(client,prompt=None,filename="Example.png"):
+	print('Oluşturuluyor....')
+	response = client.models.generate_content(
+	    model="gemini-2.0-flash-exp-image-generation",
+	    contents=prompt,
+	    config=types.GenerateContentConfig(
+	      response_modalities=['Text', 'Image']
+	    )
+	)
+	for part in response.candidates[0].content.parts:
+	  if part.text is not None:
+	    print(part.text)
+	  elif part.inline_data is not None:
+	    image = Image.open(BytesIO((part.inline_data.data)))
+	    image.save(f'{filename}')
+
+
+def helpBash(client,command='sudo apt install'):
+	prompt = f"""Merhaba, benim için bir Bash komutunu açıklayabilir misin? {command} tam olarak ne yapıyor?
+    Lütfen maksimum 4 satırla açıklayın"""
+	response = client.models.generate_content(
+    model="gemini-2.0-flash", contents=prompt)
+	return response.text
+
+
+
+def runBash(client,command='BASH ile nasıl tüm JPEG dosyalarını bulurum?'):
+	prompt = f"""Merhaba! bana bash konusunda yardım et. {command} (Lütfen sadece komutu ver ve hiç açıklama yapma çünkü direk komutu çalıştırmam gerek sadece komutu ver!)"""
+	response = client.models.generate_content(
+    model="gemini-2.0-flash", contents=prompt)
+	ai_command = response.text.replace('```bash\n','').replace('\n```','')
+	return ai_command
+	
+
+
+
+def writeCode(client,prompt="Nasl python ile 1-10 arası tüm sayıları yazarım?",filename="yeni_python_kodu.py"):
+	prompt = f"""Merhaba! {prompt} (Lütfen sadece kodu ver ve hiç açıklama yapma çünkü direk kodu çalıştırmam gerek sadece kodu ver!)"""
+	response = client.models.generate_content(
+    model="gemini-2.0-flash", contents=prompt)
+	with open(filename,"w") as f:
+		lines = response.text.splitlines()
+		code = "\n".join(lines[1:-1])
+		f.write(code)
+
+
+if __name__ == "__main__":
+    client = genai.Client(api_key=GEMINI_API)
+
+    if len(sys.argv) < 3:
+        print("""
+gemini-cli :code example.py "Kullanıcıya IP adresini yazdırtan bir python kodu yaz"
+gemini-cli :img eyfel_kulesi.png "Bana eyfel kulesini gerçekçi bir şekilde çiz"
+gemini-cli :help "sudo dpkg -i package.deb"
+gemini-cli :sh "Nasıl Masaüstü dizinindeki tüm txt dosyalarını bulurum?"
+            """)
+        sys.exit()
+
+
+    if sys.argv[1] == ":code":
+        filename = sys.argv[2]
+        prompt = ' '.join(sys.argv[2:])
+        writeCode(client,prompt=prompt,filename=filename)
+        print(f"\x1b[1m{filename} adında kod dosyası oluşturuldu!")
+        sys.exit()
+
+    elif sys.argv[1] == ":sh":
+        command = ' '.join(sys.argv[2:])
+        response = runBash(client,command=command)
+        print(f"\x1b[1m{response}")
+        sys.exit()
+
+    elif sys.argv[1] == ":img":
+        filename = sys.argv[2]
+        prompt = ' '.join(sys.argv[2:])
+        generateImage(client,prompt=prompt,filename=filename)
+        print(f"\x1b[1m{filename} adında resim oluşturuldu!")
+        sys.exit()
+    elif sys.argv[1] == ":help":
+        command = ' '.join(sys.argv[2:])
+        response = helpBash(client,command=command)
+        print(f"\x1b[1m{response}")
+        sys.exit()
