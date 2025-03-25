@@ -419,10 +419,10 @@ def displayHelp():
 {BLUE}{BOLD}gemini-cli Kullanım:{RESET}
 
 {YELLOW}Kod Oluşturma:{RESET}
-gemini-cli :code example.py "Kullanıcıya IP adresini yazdırtan bir python kodu yaz"
+gemini-cli :kod example.py "Kullanıcıya IP adresini yazdırtan bir python kodu yaz"
 
 {YELLOW}Görsel Oluşturma:{RESET}
-gemini-cli :img eyfel_kulesi.png "Bana eyfel kulesini gerçekçi bir şekilde çiz"
+gemini-cli :resim eyfel_kulesi.png "Bana eyfel kulesini gerçekçi bir şekilde çiz"
 
 {YELLOW}Görsel Analizi:{RESET}
 gemini-cli :analiz resim.jpg
@@ -474,7 +474,7 @@ if __name__ == "__main__":
     # Komut işleme
     command = sys.argv[1].lower()
     
-    if command == ":code" and len(sys.argv) >= 4:
+    if command == ":kod" and len(sys.argv) >= 4:
         filename = sys.argv[2]
         prompt = ' '.join(sys.argv[3:])
         writeCode(client, prompt=prompt, filename=filename)
@@ -484,7 +484,7 @@ if __name__ == "__main__":
         response = runBash(client, command=command)
         print(f"{BOLD}{response}{RESET}")
         
-    elif command == ":img" and len(sys.argv) >= 4:
+    elif command == ":resim" and len(sys.argv) >= 4:
         filename = sys.argv[2]
         prompt = ' '.join(sys.argv[3:])
         generateImage(client, prompt=prompt, filename=filename)
